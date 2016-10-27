@@ -2,8 +2,8 @@
 Contributors: pagarme, claudiosanches
 Tags: woocommerce, pagarme, payment
 Requires at least: 4.0
-Tested up to: 4.4
-Stable tag: 2.0.1
+Tested up to: 4.6
+Stable tag: 2.0.10
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -13,13 +13,13 @@ Receba pagamentos por cartão de crédito e boleto bancário utilizando o Pagar.
 
 O [Pagar.me](https://pagar.me/) é a melhor forma de receber pagamentos online por cartão de crédito e boleto bancário, sendo possível o cliente fazer todo o pagamento sem sair da sua loja WooCommerce.
 
-Saiba mais como o Pagar.em funciona:
+Saiba mais como o Pagar.me funciona:
 
 [vimeo http://vimeo.com/74335951]
 
 = Compatibilidade =
 
-Compatível com as versões 2.2.x, 2.3.x, 2.4.x e 2.5.x do WooCommerce.
+Compatível com desde a versão 2.2.x até 2.6.x do WooCommerce.
 
 Este plugin funciona integrado com o [WooCommerce Extra Checkout Fields for Brazil](http://wordpress.org/plugins/woocommerce-extra-checkout-fields-for-brazil/), desta forma é possível enviar documentos do cliente como "CPF" ou "CNPJ", além dos campos "número" e "bairro" do endereço. Caso você queira remover todos os campos adicionais de endereço para vender Digital Goods, é possível utilizar o plugin [WooCommerce Digital Goods Checkout](https://wordpress.org/plugins/wc-digital-goods-checkout/).
 
@@ -54,7 +54,9 @@ Você pode contribuir com código-fonte em nossa página no [GitHub](https://git
 
 Com o plugin instalado acesse o admin do WordPress e entre em "WooCommerce" > "Configurações" > "Finalizar compra" e configure as opção "Pagar.me - Boleto bancário" e "Pagar.me - Cartão de crédito".
 
-Habilite o a opção que você deseja, preencha as opções de **Chave de API** e **Chave de Criptografia** que você pode encontrar dentro da sua conta no Pagar.me em **API Keys**.
+Habilite a opção que você deseja, preencha as opções de **Chave de API** e **Chave de Criptografia** que você pode encontrar dentro da sua conta no Pagar.me em **API Keys**.
+
+Também será necessário utilizar o plugin [WooCommerce Extra Checkout Fields for Brazil](http://wordpress.org/plugins/woocommerce-extra-checkout-fields-for-brazil/) para poder enviar campos de CPF e CNPJ.
 
 Pronto, sua loja já pode receber pagamentos pelo Pagar.me.
 
@@ -115,6 +117,46 @@ Entre em contato [clicando aqui](http://wordpress.org/support/plugin/woocommerce
 
 == Changelog ==
 
+= 2.0.10 - 2016/09/29 =
+
+* Adicionado `order_number` (número do pedido) como meta dado para transações com o Checkout Pagar.me.
+
+= 2.0.9 - 2016/09/27 =
+
+* Corrigido vendas canceladas com o Checkout Pagar.me feitas quando a parcela mínima era menor do que o mínimo permitido.
+
+= 2.0.8 - 2016/09/15 =
+
+* Adicionado `order_number` (número do pedido) como meta dado das transações.
+
+= 2.0.7 - 2016/09/12 =
+
+* Corrigido o valor da primeira parcela quando é menor do que o mínimo permitido.
+* Adicionado código para corrigir o valor da taxa de juros antes de usar no Checkout Pagar.me.
+
+= 2.0.6 - 2016/09/09 =
+
+* Corrigida a compatibilidade com o WordPress 4.6.
+* Corrigido o calculo das parcelas do cartão de crédito.
+
+= 2.0.5 - 2016/07/15 =
+
+* Correções para previnir mensagens de erro ao receber notificações de pagamentos.
+
+= 2.0.4 - 2016/06/08 =
+
+* Melhorado o fluxo das transações feitas com o Checkout Pagar.me.
+
+= 2.0.3 - 2016/06/02 =
+
+* Corrigido erro ao fazer uma transação com o Checkout Pagar.me onde é adicionada taxa de juros.
+* Adicionado campo informando o total pago pelo cliente incluindo juros quando aplicável.
+
+= 2.0.2 - 2016/05/11 =
+
+* Corrigida a validação de campos da finalização para o Checkout Pagar.me.
+* Melhorada das mensagens de erro para quando não abrir o Checkout Pagar.me.
+
 = 2.0.1 - 2016/04/04 =
 
 * Permitida a validação dos campos da finalização antes de abrir o Checkout Pagar.me.
@@ -161,11 +203,6 @@ Entre em contato [clicando aqui](http://wordpress.org/support/plugin/woocommerce
 
 == Upgrade Notice ==
 
-= 2.0.1 - 2016/04/02 =
+= 2.0.10 =
 
-* Adicionado novo método para pagamento com cartões de crédito.
-* Adicionado novo método para pagamentos com boleto bancário.
-* Adicionado suporte ao Checkout Pagar.me para pagamentos com cartão de crédito.
-* Corrigida a exibição do boleto na página "Minha conta", fazendo os boletos aparecer apenas quando o pedido esta com os status de pendente ou aguardando.
-* Permitida a validação dos campos da finalização antes de abrir o Checkout Pagar.me.
-* Corrigida a mudança de status do Checkout Pagar.me.
+* Adicionado `order_number` (número do pedido) como meta dado para transações com o Checkout Pagar.me.

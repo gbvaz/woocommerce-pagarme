@@ -1,12 +1,16 @@
 <?php
+/**
+ * Pagar.me API
+ *
+ * @package WooCommerce_Pagarme/API
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
 /**
- * WC Pagar.me API.
- *
- * @package WC_Pagarme/API
+ * WC_Pagarme_API class.
  */
 class WC_Pagarme_API {
 
@@ -46,7 +50,7 @@ class WC_Pagarme_API {
 	/**
 	 * Constructor.
 	 *
-	 * @param WC_Payment_Gateway $gateway
+	 * @param WC_Payment_Gateway $gateway Gateway instance.
 	 */
 	public function __construct( $gateway = null ) {
 		$this->gateway = $gateway;
@@ -85,13 +89,13 @@ class WC_Pagarme_API {
 	 * @return bool
 	 */
 	public function using_supported_currency() {
-		return 'BRL' == get_woocommerce_currency();
+		return 'BRL' === get_woocommerce_currency();
 	}
 
 	/**
 	 * Only numbers.
 	 *
-	 * @param  string|int $string
+	 * @param  string|int $string String to convert.
 	 *
 	 * @return string|int
 	 */
@@ -130,7 +134,7 @@ class WC_Pagarme_API {
 	protected function do_request( $endpoint, $method = 'POST', $data = array(), $headers = array() ) {
 		$params = array(
 			'method'  => $method,
-			'timeout' => 60
+			'timeout' => 60,
 		);
 
 		if ( ! empty( $data ) ) {
@@ -147,35 +151,36 @@ class WC_Pagarme_API {
 	/**
 	 * Get the installments.
 	 *
-	 * @param float $amount
+	 * @param float $amount Order amount.
 	 *
 	 * @return array
 	 */
 	public function get_installments( $amount ) {
 		// Set the installment data.
-		$data = http_build_query( array(
+		$data = array(
 			'encryption_key'    => $this->gateway->encryption_key,
 			'amount'            => $amount * 100,
 			'interest_rate'     => $this->get_interest_rate(),
 			'max_installments'  => $this->gateway->max_installment,
-			'free_installments' => $this->gateway->free_installments
-		) );
+			'free_installments' => $this->gateway->free_installments,
+		);
+		$transient_id = 'pgi_' . md5( http_build_query( $data ) );
 
 		// Get saved installment data.
-		$_installments = get_transient( 'pgi_' . md5( $data ) );
+		$_installments = get_transient( $transient_id );
 
 		if ( false !== $_installments ) {
 			return $_installments;
 		}
 
-		if ( 'yes' == $this->gateway->debug ) {
+		if ( 'yes' === $this->gateway->debug ) {
 			$this->gateway->log->add( $this->gateway->id, 'Getting the order installments...' );
 		}
 
 		$response = $this->do_request( 'transactions/calculate_installments_amount', 'GET', $data );
 
 		if ( is_wp_error( $response ) ) {
-			if ( 'yes' == $this->gateway->debug ) {
+			if ( 'yes' === $this->gateway->debug ) {
 				$this->gateway->log->add( $this->gateway->id, 'WP_Error in getting the installments: ' . $response->get_error_message() );
 			}
 
@@ -186,17 +191,17 @@ class WC_Pagarme_API {
 			if ( isset( $_installments['installments'] ) ) {
 				$installments = $_installments['installments'];
 
-				if ( 'yes' == $this->gateway->debug ) {
+				if ( 'yes' === $this->gateway->debug ) {
 					$this->gateway->log->add( $this->gateway->id, 'Installments generated successfully: ' . print_r( $_installments, true ) );
 				}
 
-				set_transient( 'pgi_' . md5( $data ), $installments, MINUTE_IN_SECONDS * 5 );
+				set_transient( $transient_id, $installments, MINUTE_IN_SECONDS * 5 );
 
 				return $installments;
 			}
 		}
 
-		if ( 'yes' == $this->gateway->debug ) {
+		if ( 'yes' === $this->gateway->debug ) {
 			$this->gateway->log->add( $this->gateway->id, 'Failed to get the installments: ' . print_r( $response, true ) );
 		}
 
@@ -206,7 +211,7 @@ class WC_Pagarme_API {
 	/**
 	 * Get max installment.
 	 *
-	 * @param float $amount
+	 * @param float $amount Order amount.
 	 *
 	 * @return int
 	 */
@@ -244,6 +249,9 @@ class WC_Pagarme_API {
 				'name'  => trim( $order->billing_first_name . ' ' . $order->billing_last_name ),
 				'email' => $order->billing_email,
 			),
+			'metadata'     => array(
+				'order_number' => $order->get_order_number(),
+			),
 		);
 
 		// Phone.
@@ -276,12 +284,12 @@ class WC_Pagarme_API {
 		// Set the document number.
 		if ( class_exists( 'Extra_Checkout_Fields_For_Brazil' ) ) {
 			$wcbcf_settings = get_option( 'wcbcf_settings' );
-			if ( 0 != $wcbcf_settings['person_type'] ) {
-				if ( ( 1 == $wcbcf_settings['person_type'] && 1 == $order->billing_persontype ) || 2 == $wcbcf_settings['person_type'] ) {
+			if ( '0' !== $wcbcf_settings['person_type'] ) {
+				if ( ( '1' === $wcbcf_settings['person_type'] && '1' === $order->billing_persontype ) || '2' === $wcbcf_settings['person_type'] ) {
 					$data['customer']['document_number'] = $this->only_numbers( $order->billing_cpf );
 				}
 
-				if ( ( 1 == $wcbcf_settings['person_type'] && 2 == $order->billing_persontype ) || 3 == $wcbcf_settings['person_type'] ) {
+				if ( ( '1' === $wcbcf_settings['person_type'] && '2' === $order->billing_persontype ) || '3' === $wcbcf_settings['person_type'] ) {
 					$data['customer']['name']            = $order->billing_company;
 					$data['customer']['document_number'] = $this->only_numbers( $order->billing_cnpj );
 				}
@@ -315,7 +323,7 @@ class WC_Pagarme_API {
 			}
 
 			// Validate the installments.
-			if ( isset( $posted['pagarme_installments'] ) ) {
+			if ( apply_filters( 'wc_pagarme_allow_credit_card_installments_validation', isset( $posted['pagarme_installments'] ), $order ) ) {
 				$_installment = $posted['pagarme_installments'];
 
 				// Get installments data.
@@ -335,7 +343,7 @@ class WC_Pagarme_API {
 		}
 
 		// Add filter for Third Party plugins.
-		return apply_filters( 'wc_pagarme_transaction_data', $data );
+		return apply_filters( 'wc_pagarme_transaction_data', $data , $order );
 	}
 
 	/**
@@ -384,16 +392,97 @@ class WC_Pagarme_API {
 	}
 
 	/**
+	 * Get transaction data.
+	 *
+	 * @param  WC_Order $order Order data.
+	 * @param  string   $token Checkout token.
+	 *
+	 * @return array           Response data.
+	 */
+	public function get_transaction_data( $order, $token ) {
+		if ( 'yes' === $this->gateway->debug ) {
+			$this->gateway->log->add( $this->gateway->id, 'Getting transaction data for order ' . $order->get_order_number() . '...' );
+		}
+
+		$response = $this->do_request( 'transactions/' . $token, 'GET', array( 'api_key' => $this->gateway->api_key ) );
+
+		if ( is_wp_error( $response ) ) {
+			if ( 'yes' === $this->gateway->debug ) {
+				$this->gateway->log->add( $this->gateway->id, 'WP_Error in getting transaction data: ' . $response->get_error_message() );
+			}
+
+			return array();
+		} else {
+			$data = json_decode( $response['body'], true );
+
+			if ( isset( $data['errors'] ) ) {
+				if ( 'yes' === $this->gateway->debug ) {
+					$this->gateway->log->add( $this->gateway->id, 'Failed to get transaction data: ' . print_r( $response, true ) );
+				}
+
+				return $data;
+			}
+
+			if ( 'yes' === $this->gateway->debug ) {
+				$this->gateway->log->add( $this->gateway->id, 'Transaction data obtained successfully!' );
+			}
+
+			return $data;
+		}
+	}
+
+	/**
 	 * Generate checkout data.
 	 *
 	 * @param  WC_Order $order Order data.
+	 * @param  string   $token Checkout token.
 	 *
 	 * @return array           Checkout data.
 	 */
-	public function generate_checkout_data( $order ) {
+	public function generate_checkout_data( $order, $token ) {
+		$transaction  = $this->get_transaction_data( $order, $token );
+		$installments = $this->get_installments( $order->get_total() );
+
+		// Valid transaction.
+		if ( ! isset( $transaction['amount'] ) ) {
+			return array( 'error' => __( 'Invalid transaction data.', 'woocommerce-pagarme' ) );
+		}
+
+		// Test if using more installments that allowed.
+		if ( $this->gateway->max_installment < $transaction['installments'] || empty( $installments[ $transaction['installments'] ] ) ) {
+			if ( 'yes' === $this->gateway->debug ) {
+				$this->gateway->log->add( $this->gateway->id, 'Payment made with more installments than allowed for order ' . $order->get_order_number() );
+			}
+
+			return array( 'error' => __( 'Payment made with more installments than allowed.', 'woocommerce-pagarme' ) );
+		}
+
+		$installment = $installments[ $transaction['installments'] ];
+
+		// Test smallest installment amount.
+		if ( 1 !== intval( $transaction['installments'] ) && $this->get_smallest_installment() > $installment['installment_amount'] ) {
+			if ( 'yes' === $this->gateway->debug ) {
+				$this->gateway->log->add( $this->gateway->id, 'Payment divided into a lower amount than permitted for order ' . $order->get_order_number() );
+			}
+
+			return array( 'error' => __( 'Payment divided into a lower amount than permitted.', 'woocommerce-pagarme' ) );
+		}
+
+		// Check the transaction amount.
+		if ( intval( $transaction['amount'] ) !== intval( $installment['amount'] ) ) {
+			if ( 'yes' === $this->gateway->debug ) {
+				$this->gateway->log->add( $this->gateway->id, 'Wrong payment amount total for order ' . $order->get_order_number() );
+			}
+
+			return array( 'error' => __( 'Wrong payment amount total.', 'woocommerce-pagarme' ) );
+		}
+
 		$data = array(
-			'api_key' => $this->gateway->api_key,
-			'amount'  => $order->get_total() * 100,
+			'api_key'  => $this->gateway->api_key,
+			'amount'   => $transaction['amount'],
+			'metadata' => array(
+				'order_number' => $order->get_order_number(),
+			),
 		);
 
 		return apply_filters( 'wc_pagarme_checkout_data', $data );
@@ -403,13 +492,13 @@ class WC_Pagarme_API {
 	 * Do the transaction.
 	 *
 	 * @param  WC_Order $order Order data.
-	 * @param  array    $data  Transaction data.
+	 * @param  array    $args  Transaction args.
 	 * @param  string   $token Checkout token.
 	 *
 	 * @return array           Response data.
 	 */
-	public function do_transaction( $order, $data, $token = '' ) {
-		if ( 'yes' == $this->gateway->debug ) {
+	public function do_transaction( $order, $args, $token = '' ) {
+		if ( 'yes' === $this->gateway->debug ) {
 			$this->gateway->log->add( $this->gateway->id, 'Doing a transaction for order ' . $order->get_order_number() . '...' );
 		}
 
@@ -418,37 +507,82 @@ class WC_Pagarme_API {
 			$endpoint .= '/' . $token . '/capture';
 		}
 
-		$response = $this->do_request( $endpoint, 'POST', http_build_query( $data ) );
+		$response = $this->do_request( $endpoint, 'POST', $args );
 
 		if ( is_wp_error( $response ) ) {
-			if ( 'yes' == $this->gateway->debug ) {
+			if ( 'yes' === $this->gateway->debug ) {
 				$this->gateway->log->add( $this->gateway->id, 'WP_Error in doing the transaction: ' . $response->get_error_message() );
 			}
 
 			return array();
 		} else {
-			$transaction_data = json_decode( $response['body'], true );
+			$data = json_decode( $response['body'], true );
 
-			if ( isset( $transaction_data['errors'] ) ) {
-				if ( 'yes' == $this->gateway->debug ) {
+			if ( isset( $data['errors'] ) ) {
+				if ( 'yes' === $this->gateway->debug ) {
 					$this->gateway->log->add( $this->gateway->id, 'Failed to make the transaction: ' . print_r( $response, true ) );
 				}
 
-				return $transaction_data;
+				return $data;
 			}
 
-			if ( 'yes' == $this->gateway->debug ) {
-				$this->gateway->log->add( $this->gateway->id, 'Transaction completed successfully! The transaction response is: ' . print_r( $transaction_data, true ) );
+			if ( 'yes' === $this->gateway->debug ) {
+				$this->gateway->log->add( $this->gateway->id, 'Transaction completed successfully! The transaction response is: ' . print_r( $data, true ) );
 			}
 
-			return $transaction_data;
+			return $data;
+		}
+	}
+
+	/**
+	 * Do the transaction.
+	 *
+	 * @param  WC_Order $order Order data.
+	 * @param  string   $token Checkout token.
+	 *
+	 * @return array           Response data.
+	 */
+	public function cancel_transaction( $order, $token ) {
+		if ( 'yes' === $this->gateway->debug ) {
+			$this->gateway->log->add( $this->gateway->id, 'Cancelling transaction for order ' . $order->get_order_number() . '...' );
+		}
+
+		$endpoint = 'transactions';
+		if ( ! empty( $token ) ) {
+			$endpoint .= '/' . $token . '/refund';
+		}
+
+		$response = $this->do_request( $endpoint, 'POST', array( 'api_key' => $this->gateway->api_key ) );
+
+		if ( is_wp_error( $response ) ) {
+			if ( 'yes' === $this->gateway->debug ) {
+				$this->gateway->log->add( $this->gateway->id, 'WP_Error in doing the transaction cancellation: ' . $response->get_error_message() );
+			}
+
+			return array();
+		} else {
+			$data = json_decode( $response['body'], true );
+
+			if ( isset( $data['errors'] ) ) {
+				if ( 'yes' === $this->gateway->debug ) {
+					$this->gateway->log->add( $this->gateway->id, 'Failed to cancel the transaction: ' . print_r( $response, true ) );
+				}
+
+				return $data;
+			}
+
+			if ( 'yes' === $this->gateway->debug ) {
+				$this->gateway->log->add( $this->gateway->id, 'Transaction canceled successfully! The response is: ' . print_r( $data, true ) );
+			}
+
+			return $data;
 		}
 	}
 
 	/**
 	 * Get card brand name.
 	 *
-	 * @param string $brand
+	 * @param string $brand Card brand.
 	 * @return string
 	 */
 	protected function get_card_brand_name( $brand ) {
@@ -471,23 +605,26 @@ class WC_Pagarme_API {
 	 * Save order meta fields.
 	 * Save fields as meta data to display on order's admin screen.
 	 *
-	 * @param int $order_id
-	 * @param array $data
+	 * @param int   $id Order ID.
+	 * @param array $data Order data.
 	 */
-	protected function save_order_meta_fields( $order_id, $data ) {
-		if ( 'boleto' == $data['payment_method'] ) {
+	protected function save_order_meta_fields( $id, $data ) {
+		if ( 'boleto' === $data['payment_method'] ) {
 			if ( ! empty( $data['boleto_url'] ) ) {
-				update_post_meta( $order_id, __( 'Banking Ticket URL', 'woocommerce-pagarme' ), sanitize_text_field( $data['boleto_url'] ) );
+				update_post_meta( $id, __( 'Banking Ticket URL', 'woocommerce-pagarme' ), sanitize_text_field( $data['boleto_url'] ) );
 			}
 		} else {
 			if ( ! empty( $data['card_brand'] ) ) {
-				update_post_meta( $order_id, __( 'Credit Card', 'woocommerce-pagarme' ), $this->get_card_brand_name( sanitize_text_field( $data['card_brand'] ) ) );
+				update_post_meta( $id, __( 'Credit Card', 'woocommerce-pagarme' ), $this->get_card_brand_name( sanitize_text_field( $data['card_brand'] ) ) );
 			}
 			if ( ! empty( $data['installments'] ) ) {
-				update_post_meta( $order_id, __( 'Installments', 'woocommerce-pagarme' ), sanitize_text_field( $data['installments'] ) );
+				update_post_meta( $id, __( 'Installments', 'woocommerce-pagarme' ), sanitize_text_field( $data['installments'] ) );
+			}
+			if ( ! empty( $data['amount'] ) ) {
+				update_post_meta( $id, __( 'Total paid', 'woocommerce-pagarme' ), number_format( intval( $data['amount'] ) / 100, wc_get_price_decimals(), wc_get_price_decimal_separator(), wc_get_price_thousand_separator() ) );
 			}
 			if ( ! empty( $data['antifraud_score'] ) ) {
-				update_post_meta( $order_id, __( 'Anti Fraud Score', 'woocommerce-pagarme' ), sanitize_text_field( $data['antifraud_score'] ) );
+				update_post_meta( $id, __( 'Anti Fraud Score', 'woocommerce-pagarme' ), sanitize_text_field( $data['antifraud_score'] ) );
 			}
 		}
 	}
@@ -501,10 +638,27 @@ class WC_Pagarme_API {
 	 */
 	public function process_regular_payment( $order_id ) {
 		$order = wc_get_order( $order_id );
+
 		if ( isset( $this->gateway->checkout ) && 'yes' === $this->gateway->checkout ) {
-			$token       = isset( $_POST['pagarme_checkout_token'] ) ? sanitize_text_field( $_POST['pagarme_checkout_token'] ) : 'null';
-			$data        = $this->generate_checkout_data( $order );
-			$transaction = $this->do_transaction( $order, $data, $token );
+			if ( ! empty( $_POST['pagarme_checkout_token'] ) ) {
+				$token = sanitize_text_field( wp_unslash( $_POST['pagarme_checkout_token'] ) );
+				$data  = $this->generate_checkout_data( $order, $token );
+
+				// Cancel the payment is irregular.
+				if ( isset( $data['error'] ) ) {
+					$this->cancel_transaction( $order, $token );
+					$order->update_status( 'failed', $data['error'] );
+
+					return array(
+						'result'   => 'success',
+						'redirect' => $this->gateway->get_return_url( $order ),
+					);
+				}
+
+				$transaction = $this->do_transaction( $order, $data, $token );
+			} else {
+				$transaction = array( 'errors' => array( array( 'message' => __( 'Missing credit card data, please review your data and try again or contact us for assistance.', 'woocommerce-pagarme' ) ) ) );
+			}
 		} else {
 			$data        = $this->generate_transaction_data( $order, $_POST );
 			$transaction = $this->do_transaction( $order, $data );
@@ -516,7 +670,7 @@ class WC_Pagarme_API {
 			}
 
 			return array(
-				'result' => 'fail'
+				'result' => 'fail',
 			);
 		} else {
 			// Save transaction data.
@@ -544,7 +698,7 @@ class WC_Pagarme_API {
 			// Redirect to thanks page.
 			return array(
 				'result'   => 'success',
-				'redirect' => $this->gateway->get_return_url( $order )
+				'redirect' => $this->gateway->get_return_url( $order ),
 			);
 		}
 	}
@@ -598,22 +752,24 @@ class WC_Pagarme_API {
 
 			exit;
 		} else {
-			wp_die( __( 'Pagar.me Request Failure', 'woocommerce-pagarme' ), '', array( 'response' => 401 ) );
+			wp_die( esc_html__( 'Pagar.me Request Failure', 'woocommerce-pagarme' ), '', array( 'response' => 401 ) );
 		}
 	}
 
 	/**
 	 * Process successeful IPN requests.
+	 *
+	 * @param array $posted Posted data.
 	 */
 	public function process_successful_ipn( $posted ) {
 		global $wpdb;
 
 		$posted   = wp_unslash( $posted );
-		$order_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT post_id FROM $wpdb->postmeta WHERE meta_key = '_wc_pagarme_transaction_id' AND meta_value = %d", $posted['id'] ) );
+		$order_id = absint( $wpdb->get_var( $wpdb->prepare( "SELECT post_id FROM $wpdb->postmeta WHERE meta_key = '_wc_pagarme_transaction_id' AND meta_value = %d", $posted['id'] ) ) );
 		$order    = wc_get_order( $order_id );
 		$status   = sanitize_text_field( $posted['current_status'] );
 
-		if ( $order->id == $order_id ) {
+		if ( $order && $order->id === $order_id ) {
 			$this->process_order_status( $order, $status );
 		}
 	}
@@ -625,13 +781,13 @@ class WC_Pagarme_API {
 	 * @param string   $status Transaction status.
 	 */
 	public function process_order_status( $order, $status ) {
-		if ( 'yes' == $this->gateway->debug ) {
+		if ( 'yes' === $this->gateway->debug ) {
 			$this->gateway->log->add( $this->gateway->id, 'Payment status for order ' . $order->get_order_number() . ' is now: ' . $status );
 		}
 
 		switch ( $status ) {
 			case 'authorized' :
-				if ( ! in_array( $order->get_status(), array( 'processing', 'completed' ) ) ) {
+				if ( ! in_array( $order->get_status(), array( 'processing', 'completed' ), true ) ) {
 					$order->update_status( 'on-hold', __( 'Pagar.me: The transaction was authorized.', 'woocommerce-pagarme' ) );
 				}
 
@@ -641,7 +797,7 @@ class WC_Pagarme_API {
 
 				break;
 			case 'paid' :
-				if ( ! in_array( $order->get_status(), array( 'processing', 'completed' ) ) ) {
+				if ( ! in_array( $order->get_status(), array( 'processing', 'completed' ), true ) ) {
 					$order->add_order_note( __( 'Pagar.me: Transaction paid.', 'woocommerce-pagarme' ) );
 				}
 
@@ -660,9 +816,9 @@ class WC_Pagarme_API {
 				$transaction_url = '<a href="https://dashboard.pagar.me/#/transactions/' . intval( $transaction_id ) . '">https://dashboard.pagar.me/#/transactions/' . intval( $transaction_id ) . '</a>';
 
 				$this->send_email(
-					sprintf( __( 'The transaction for order %s was rejected by the card company or by fraud', 'woocommerce-pagarme' ), $order->get_order_number() ),
-					__( 'Transaction failed', 'woocommerce-pagarme' ),
-					sprintf( __( 'Order %s has been marked as failed, because the transaction was rejected by the card company or by fraud, for more details, see %s.', 'woocommerce-pagarme' ), $order->get_order_number(), $transaction_url )
+					sprintf( esc_html__( 'The transaction for order %s was rejected by the card company or by fraud', 'woocommerce-pagarme' ), $order->get_order_number() ),
+					esc_html__( 'Transaction failed', 'woocommerce-pagarme' ),
+					sprintf( esc_html__( 'Order %1$s has been marked as failed, because the transaction was rejected by the card company or by fraud, for more details, see %2$s.', 'woocommerce-pagarme' ), $order->get_order_number(), $transaction_url )
 				);
 
 				break;
@@ -673,9 +829,9 @@ class WC_Pagarme_API {
 				$transaction_url = '<a href="https://dashboard.pagar.me/#/transactions/' . intval( $transaction_id ) . '">https://dashboard.pagar.me/#/transactions/' . intval( $transaction_id ) . '</a>';
 
 				$this->send_email(
-					sprintf( __( 'The transaction for order %s refunded', 'woocommerce-pagarme' ), $order->get_order_number() ),
-					__( 'Transaction refunded', 'woocommerce-pagarme' ),
-					sprintf( __( 'Order %s has been marked as refunded by Pagar.me, for more details, see %s.', 'woocommerce-pagarme' ), $order->get_order_number(), $transaction_url )
+					sprintf( esc_html__( 'The transaction for order %s refunded', 'woocommerce-pagarme' ), $order->get_order_number() ),
+					esc_html__( 'Transaction refunded', 'woocommerce-pagarme' ),
+					sprintf( esc_html__( 'Order %1$s has been marked as refunded by Pagar.me, for more details, see %2$s.', 'woocommerce-pagarme' ), $order->get_order_number(), $transaction_url )
 				);
 
 				break;

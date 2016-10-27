@@ -1,12 +1,17 @@
 <?php
+/**
+ * Pagar.me Credit Card gateway
+ *
+ * @package WooCommerce_Pagarme/Gateway
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
 /**
- * Pagar.me Credit Card gateway.
+ * WC_Pagarme_Credit_Card_Gateway class.
  *
- * @package WooCommerce_Pagarme/Gateway
  * @extends WC_Payment_Gateway
  */
 class WC_Pagarme_Credit_Card_Gateway extends WC_Payment_Gateway {
@@ -41,7 +46,7 @@ class WC_Pagarme_Credit_Card_Gateway extends WC_Payment_Gateway {
 		$this->debug                = $this->get_option( 'debug' );
 
 		// Active logs.
-		if ( 'yes' == $this->debug ) {
+		if ( 'yes' === $this->debug ) {
 			$this->log = new WC_Logger();
 		}
 
@@ -60,7 +65,7 @@ class WC_Pagarme_Credit_Card_Gateway extends WC_Payment_Gateway {
 	 * Admin page.
 	 */
 	public function admin_options() {
-		include 'admin/views/html-admin-page.php';
+		include dirname( __FILE__ ) . '/admin/views/html-admin-page.php';
 	}
 
 	/**
@@ -100,7 +105,7 @@ class WC_Pagarme_Credit_Card_Gateway extends WC_Payment_Gateway {
 			'integration' => array(
 				'title'       => __( 'Integration Settings', 'woocommerce-pagarme' ),
 				'type'        => 'title',
-				'description' => ''
+				'description' => '',
 			),
 			'api_key' => array(
 				'title'             => __( 'Pagar.me API Key', 'woocommerce-pagarme' ),
@@ -153,7 +158,7 @@ class WC_Pagarme_Credit_Card_Gateway extends WC_Payment_Gateway {
 					'10' => '10',
 					'11' => '11',
 					'12' => '12',
-				)
+				),
 			),
 			'smallest_installment' => array(
 				'title'       => __( 'Smallest Installment', 'woocommerce-pagarme' ),
@@ -229,7 +234,7 @@ class WC_Pagarme_Credit_Card_Gateway extends WC_Payment_Gateway {
 					'wcPagarmeParams',
 					array(
 						'encryptionKey'    => $this->encryption_key,
-						'interestRate'     => $this->interest_rate,
+						'interestRate'     => $this->api->get_interest_rate(),
 						'freeInstallments' => $this->free_installments,
 						'postbackUrl'      => WC()->api_request_url( get_class( $this ) ),
 						'customerFields'   => $customer,
@@ -255,12 +260,10 @@ class WC_Pagarme_Credit_Card_Gateway extends WC_Payment_Gateway {
 
 	/**
 	 * Payment fields.
-	 *
-	 * @return string
 	 */
 	public function payment_fields() {
 		if ( $description = $this->get_description() ) {
-			echo wpautop( wptexturize( $description ) );
+			echo wp_kses_post( wpautop( wptexturize( $description ) ) );
 		}
 
 		$cart_total = $this->get_order_total();
@@ -282,7 +285,7 @@ class WC_Pagarme_Credit_Card_Gateway extends WC_Payment_Gateway {
 		} else {
 			echo '<div id="pagarme-checkout-params" ';
 			echo 'data-total="' . esc_attr( $cart_total * 100 ) . '" ';
-			echo 'data-max_installment="' . esc_attr( $this->api->get_max_installment( $cart_total ) ) . '"';
+			echo 'data-max_installment="' . esc_attr( apply_filters( 'wc_pagarme_checkout_credit_card_max_installments', $this->api->get_max_installment( $cart_total ) ) ) . '"';
 			echo '></div>';
 		}
 	}
@@ -302,14 +305,12 @@ class WC_Pagarme_Credit_Card_Gateway extends WC_Payment_Gateway {
 	 * Thank You page message.
 	 *
 	 * @param int $order_id Order ID.
-	 *
-	 * @return string
 	 */
 	public function thankyou_page( $order_id ) {
 		$order = wc_get_order( $order_id );
 		$data  = get_post_meta( $order_id, '_wc_pagarme_transaction_data', true );
 
-		if ( isset( $data['installments'] ) && in_array( $order->get_status(), array( 'processing', 'on-hold' ) ) ) {
+		if ( isset( $data['installments'] ) && in_array( $order->get_status(), array( 'processing', 'on-hold' ), true ) ) {
 			wc_get_template(
 				'credit-card/payment-instructions.php',
 				array(
@@ -332,7 +333,7 @@ class WC_Pagarme_Credit_Card_Gateway extends WC_Payment_Gateway {
 	 * @return string                Payment instructions.
 	 */
 	public function email_instructions( $order, $sent_to_admin, $plain_text = false ) {
-		if ( $sent_to_admin || ! in_array( $order->get_status(), array( 'processing', 'on-hold' ) ) || $this->id !== $order->payment_method ) {
+		if ( $sent_to_admin || ! in_array( $order->get_status(), array( 'processing', 'on-hold' ), true ) || $this->id !== $order->payment_method ) {
 			return;
 		}
 
